@@ -1,4 +1,5 @@
 from fastapi import FastAPI, WebSocket
+from fastapi.responses import FileResponse
 from api.routes import router
 from api.websocket import websocket_pipeline
 
@@ -16,6 +17,11 @@ async def stream(websocket: WebSocket):
     await websocket_pipeline(websocket)
 
 
+@app.get("/dashboard")
+def dashboard():
+    return FileResponse("dashboard.html")
+
+
 @app.get("/")
 def root():
     return {
@@ -28,6 +34,7 @@ def root():
             "POST /api/ingest/arxiv",
             "POST /api/ingest/pdf",
             "WS   /stream",
+            "GET  /dashboard",
         ]
     }
 

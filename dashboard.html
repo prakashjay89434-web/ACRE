@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ACRE Dashboard</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { color: #00d4ff; }
+        input { width: 60%; padding: 10px; font-size: 16px; border-radius: 5px; border: none; }
+        button { padding: 10px 20px; background: #00d4ff; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        #output { margin-top: 20px; background: #16213e; padding: 20px; border-radius: 10px; min-height: 200px; }
+        .status { color: #00d4ff; }
+        .plan { color: #00ff88; }
+        .code { color: #ffcc00; font-family: monospace; }
+        .result { color: #ff6b6b; font-size: 20px; font-weight: bold; }
+        .step { margin: 5px 0; padding: 5px; background: #0f3460; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🤖 ACRE — Agentic Code & Reasoning Engine</h1>
+    <p>100% Local AI System | No External APIs</p>
+
+    <input type="text" id="query" placeholder="Ask a math or code question..." 
+           value="Calculate eigenvalues of a 3x3 matrix"/>
+    <button onclick="runPipeline()">▶ Run</button>
+
+    <div id="output">
+        <p style="color:#666">Results will appear here...</p>
+    </div>
+
+    <script>
+        function runPipeline() {
+            const query = document.getElementById("query").value;
+            const output = document.getElementById("output");
+            output.innerHTML = "";
+
+            const ws = new WebSocket("ws://localhost:8000/stream");
+
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ query: query }));
+                addLine("⚡ Connected to ACRE...", "status");
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === "status") {
+                    addLine(data.message, "status");
+                }
+                else if (data.type === "plan") {
+                    addLine("📋 Plan Generated:", "plan");
+                    data.steps.forEach(step => {
+                        addLine("  " + step, "step");
+                    });
+                    addLine(`MCTS Score: ${data.mcts_score.toFixed(2)}`, "plan");
+                }
+                else if (data.type === "code") {
+                    addLine("💻 Code Output:", "code");
+                    addLine(data.output, "code");
+                }
+                else if (data.type === "result") {
+                    addLine(`✅ Verification Score: ${data.verification_score}/100`, "result");
+                    addLine("Pipeline Complete!", "result");
+                    ws.close();
+                }
+                else if (data.type === "error") {
+                    addLine("❌ Error: " + data.message, "result");
+                }
+            };
+
+            ws.onerror = () => addLine("❌ Connection error", "result");
+        }
+
+        function addLine(text, className) {
+            const output = document.getElementById("output");
+            const div = document.createElement("div");
+            div.className = className;
+            div.textContent = text;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+    </script>
+</body>
+</html>
