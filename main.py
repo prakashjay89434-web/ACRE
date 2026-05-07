@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from api.routes import router
+from api.websocket import websocket_pipeline
 
 app = FastAPI(
     title="ACRE - Agentic Code & Reasoning Engine",
@@ -8,6 +9,11 @@ app = FastAPI(
 )
 
 app.include_router(router, prefix="/api")
+
+
+@app.websocket("/stream")
+async def stream(websocket: WebSocket):
+    await websocket_pipeline(websocket)
 
 
 @app.get("/")
@@ -19,6 +25,9 @@ def root():
         "endpoints": [
             "GET  /api/status",
             "POST /api/full_pipeline",
+            "POST /api/ingest/arxiv",
+            "POST /api/ingest/pdf",
+            "WS   /stream",
         ]
     }
 
