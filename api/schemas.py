@@ -25,3 +25,8 @@ class PipelineResponse(BaseModel):
 class StatusResponse(BaseModel):
     status: str
     message: str
+
+class IngestResponse(BaseModel):
+    success: bool
+    message: str
+    chunks_stored: int
