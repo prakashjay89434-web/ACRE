@@ -7,3 +7,4 @@ __pycache__/
 logs/
 data/vectors/
 *.zip
+finetuning/ACRE_lora_adapters/adapter_model.safetensors
