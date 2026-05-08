@@ -3,9 +3,10 @@ from typing import TypedDict, Any
 from agents.planner_agent import PlannerAgent
 from agents.coder_agent import CoderAgent
 from agents.critic_agent import CriticAgent
+from agents.general_agent import GeneralAgent
+from utils.query_classifier import classify_query
 
 
-# Define the shared state structure
 class ACREState(TypedDict):
     query: str
     plan: dict
@@ -13,15 +14,23 @@ class ACREState(TypedDict):
     code_result: dict
     verification: dict
     error: str
+    query_type: str
 
 
-# Instantiate agents
 planner = PlannerAgent()
 coder = CoderAgent()
 critic = CriticAgent()
+general = GeneralAgent()
 
 
-# Build the graph
+def route_query(state: dict) -> str:
+    """Route to technical or general pipeline."""
+    query_type = classify_query(state["query"])
+    state["query_type"] = query_type
+    print(f"  [Router] Query type: {query_type}")
+    return query_type
+
+
 def build_graph():
     graph = StateGraph(ACREState)
 
@@ -29,12 +38,24 @@ def build_graph():
     graph.add_node("planner", planner)
     graph.add_node("coder", coder)
     graph.add_node("critic", critic)
+    graph.add_node("general", general)
 
-    # Define flow: planner -> coder -> critic -> END
-    graph.set_entry_point("planner")
+    # Router as entry point
+    graph.set_conditional_entry_point(
+        route_query,
+        {
+            "technical": "planner",
+            "general": "general"
+        }
+    )
+
+    # Technical pipeline
     graph.add_edge("planner", "coder")
     graph.add_edge("coder", "critic")
     graph.add_edge("critic", END)
+
+    # General pipeline
+    graph.add_edge("general", END)
 
     return graph.compile()
 
@@ -42,17 +63,21 @@ def build_graph():
 if __name__ == "__main__":
     app = build_graph()
 
+    # Test general query
+    print("=== Testing General Query ===")
     result = app.invoke({
-        "query": "Calculate the eigenvalues of a 3x3 matrix",
-        "plan": {},
-        "current_step": 0,
-        "code_result": {},
-        "verification": {},
-        "error": ""
+        "query": "Who is Elon Musk?",
+        "plan": {}, "current_step": 0,
+        "code_result": {}, "verification": {},
+        "error": "", "query_type": ""
     })
+    print(f"Answer: {result['code_result']['stdout'][:300]}")
 
-    print("\n--- FINAL RESULT ---")
-    print(f"Query: {result['query']}")
-    print(f"Plan steps: {result['plan']['steps']}")
-    print(f"Code output: {result['code_result']['stdout']}")
-    print(f"Verification score: {result['verification']['score']}/100")
+    print("\n=== Testing Technical Query ===")
+    result = app.invoke({
+        "query": "Calculate eigenvalues of a 3x3 matrix",
+        "plan": {}, "current_step": 0,
+        "code_result": {}, "verification": {},
+        "error": "", "query_type": ""
+    })
+    print(f"Output: {result['code_result']['stdout'][:200]}")

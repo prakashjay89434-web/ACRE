@@ -3,6 +3,7 @@ from rag.reflection import reflective_search
 from tot.thoughts import generate_thoughts, score_thought
 from tot.mcts import MCTS
 from typing import Any
+from utils.web_search import search_web
 
 
 class PlannerAgent(BaseAgent):
@@ -16,7 +17,8 @@ class PlannerAgent(BaseAgent):
 
     def run(self, state: dict[str, Any]) -> dict[str, Any]:
         query = state.get("query", "")
-        print(f"  [Planner] Thinking about: '{query}'")
+        print(f"  [Planner] Searching web...")
+        web_context = search_web(query, max_results=2)
 
         # Step 1: RAG retrieval
         print(f"  [Planner] Searching knowledge base...")
@@ -25,7 +27,7 @@ class PlannerAgent(BaseAgent):
 
         # Step 2: Generate 3 different plans (Tree of Thoughts)
         print(f"  [Planner] Generating 3 thought branches...")
-        thoughts = generate_thoughts(query, context, n=3)
+        thoughts = generate_thoughts(query, context + "\n" + web_context, n=3)
 
         # Step 3: Score each plan
         scores = [score_thought(t, query) for t in thoughts]
