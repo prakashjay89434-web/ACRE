@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 void main() {
@@ -370,24 +371,153 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 // ── HISTORY SCREEN ───────────────────────────────────────
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
   @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  List<dynamic> _history = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+ Future<void> _loadHistory() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:8000/api/history'),
+      );
+      final data = jsonDecode(response.body);
+      setState(() {
+        _history = data['history'].reversed.toList();
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.history, size: 60, color: Colors.grey),
-          SizedBox(height: 16),
-          Text("Chat History",
-              style: TextStyle(color: Colors.grey, fontSize: 18)),
-          SizedBox(height: 8),
-          Text("Coming soon...",
-              style: TextStyle(color: Colors.grey, fontSize: 12)),
-        ],
-      ),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: const Color(0xFF16213E),
+          child: Row(
+            children: [
+              const Icon(Icons.history, color: Color(0xFF00D4FF)),
+              const SizedBox(width: 10),
+              const Text("Chat History",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.grey),
+                onPressed: () {
+                  setState(() => _loading = true);
+                  _loadHistory();
+                },
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                      color: Color(0xFF00D4FF)))
+              : _history.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.history, size: 60, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text("No history yet",
+                              style: TextStyle(
+                                  color: Colors.grey, fontSize: 18)),
+                          SizedBox(height: 8),
+                          Text("Start chatting to see history here",
+                              style: TextStyle(
+                                  color: Colors.grey, fontSize: 12)),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _history.length,
+                      itemBuilder: (context, index) {
+                        final item = _history[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16213E),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    item['type'] == 'technical'
+                                        ? Icons.code
+                                        : Icons.public,
+                                    color: item['type'] == 'technical'
+                                        ? Colors.orange
+                                        : const Color(0xFF00D4FF),
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    item['type'] == 'technical'
+                                        ? 'Technical'
+                                        : 'General',
+                                    style: TextStyle(
+                                      color: item['type'] == 'technical'
+                                          ? Colors.orange
+                                          : const Color(0xFF00D4FF),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    item['timestamp'] ?? '',
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Q: ${item['query']}",
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "A: ${item['answer']?.toString().substring(0, item['answer'].toString().length.clamp(0, 150))}...",
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+        ),
+      ],
     );
   }
 }

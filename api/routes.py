@@ -10,6 +10,7 @@ from api.schemas import QueryRequest, PipelineResponse, StatusResponse, IngestRe
 from rag.ingestion_pdf import ingest_pdf, ingest_arxiv
 import tempfile
 import os
+from utils.history import get_history, clear_history
 
 router = APIRouter()
 
@@ -80,3 +81,12 @@ async def ingest_pdf_file(file: UploadFile = File(...)):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/history")
+def get_chat_history():
+    return {"history": get_history()}
+
+
+@router.delete("/history")
+def delete_chat_history():
+    clear_history()
+    return {"message": "History cleared"}

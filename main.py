@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router
 from api.websocket import websocket_pipeline
 
@@ -7,6 +8,15 @@ app = FastAPI(
     title="ACRE - Agentic Code & Reasoning Engine",
     description="100% local multi-agent AI system",
     version="0.1.0"
+)
+
+# Allow Flutter app to connect
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(router, prefix="/api")

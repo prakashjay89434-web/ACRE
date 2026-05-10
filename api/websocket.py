@@ -1,6 +1,7 @@
 from fastapi import WebSocket, WebSocketDisconnect
 from graph import build_graph
 import json
+from utils.history import save_conversation
 
 app_graph = build_graph()
 
@@ -35,6 +36,11 @@ async def websocket_pipeline(websocket: WebSocket):
             }))
 
             result = app_graph.invoke(state)
+            # Save to history
+            answer = result.get("code_result", {}).get("stdout", "")
+            query_type = result.get("query_type", "general")
+            save_conversation(query, answer, query_type)
+
 
             # Send plan if exists
             if result.get("plan", {}).get("steps"):
