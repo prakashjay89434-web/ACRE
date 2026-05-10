@@ -21,11 +21,116 @@ class ACREApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFF1A1A2E),
       ),
-      home: const ChatScreen(),
+      home: const MainScreen(),
     );
   }
 }
 
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _screens = [
+    const ChatScreen(),
+    const HistoryScreen(),
+    const SettingsScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Row(
+        children: [
+          // Sidebar
+          Container(
+            width: 220,
+            color: const Color(0xFF0F3460),
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                const Text("🤖 ACRE",
+                    style: TextStyle(
+                        color: Color(0xFF00D4FF),
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text("AI Assistant",
+                    style: TextStyle(color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 30),
+                _sidebarItem(Icons.chat, "Chat", 0),
+                _sidebarItem(Icons.history, "History", 1),
+                _sidebarItem(Icons.settings, "Settings", 2),
+                const Spacer(),
+                Container(
+                  margin: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16213E),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.circle, color: Colors.green, size: 10),
+                      SizedBox(width: 8),
+                      Text("Backend Connected",
+                          style:
+                              TextStyle(color: Colors.grey, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+          // Main content
+          Expanded(child: _screens[_selectedIndex]),
+        ],
+      ),
+    );
+  }
+
+  Widget _sidebarItem(IconData icon, String label, int index) {
+    final isSelected = _selectedIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF00D4FF).withOpacity(0.2)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected
+              ? Border.all(color: const Color(0xFF00D4FF), width: 1)
+              : null,
+        ),
+        child: Row(
+          children: [
+            Icon(icon,
+                color:
+                    isSelected ? const Color(0xFF00D4FF) : Colors.grey,
+                size: 20),
+            const SizedBox(width: 12),
+            Text(label,
+                style: TextStyle(
+                    color: isSelected
+                        ? const Color(0xFF00D4FF)
+                        : Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── CHAT SCREEN ──────────────────────────────────────────
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -35,13 +140,14 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
   WebSocketChannel? _channel;
   bool _isLoading = false;
 
   void _sendMessage() {
     final query = _controller.text.trim();
-    if (query.isEmpty) return;
+    if (query.isEmpty || _isLoading) return;
 
     setState(() {
       _messages.add({"role": "user", "text": query});
@@ -49,13 +155,15 @@ class _ChatScreenState extends State<ChatScreen> {
       _controller.clear();
     });
 
+    _scrollToBottom();
+
     _channel = WebSocketChannel.connect(
       Uri.parse('ws://localhost:8000/stream'),
     );
 
     _channel!.sink.add(jsonEncode({"query": query}));
-
     String response = "";
+    _messages.add({"role": "bot", "text": "..."});
 
     _channel!.stream.listen(
       (message) {
@@ -69,123 +177,186 @@ class _ChatScreenState extends State<ChatScreen> {
               response += "  • $step\n";
             }
           } else if (data["type"] == "code") {
-            response += "\n💻 Output: ${data['output']}\n";
+            response += "\n💻 Answer:\n${data['output']}\n";
           } else if (data["type"] == "result") {
-            response += "\n✅ Score: ${data['verification_score']}/100";
+            if (data['verification_score'] > 0) {
+              response += "\n✅ Verified: ${data['verification_score']}/100";
+            }
             _isLoading = false;
           }
           _updateLastBotMessage(response);
         });
+        _scrollToBottom();
       },
       onDone: () => setState(() => _isLoading = false),
       onError: (e) => setState(() {
         _isLoading = false;
-        response += "\n❌ Error: $e";
-        _updateLastBotMessage(response);
+        _updateLastBotMessage("❌ Connection error. Is backend running?");
       }),
     );
-
-    _messages.add({"role": "bot", "text": ""});
   }
 
   void _updateLastBotMessage(String text) {
     final lastBot = _messages.lastIndexWhere((m) => m["role"] == "bot");
-    if (lastBot != -1) {
-      _messages[lastBot]["text"] = text;
-    }
+    if (lastBot != -1) _messages[lastBot]["text"] = text;
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF16213E),
-        title: const Row(
-          children: [
-            Text("🤖", style: TextStyle(fontSize: 24)),
-            SizedBox(width: 10),
-            Text("ACRE — AI Assistant",
-                style: TextStyle(color: Color(0xFF00D4FF))),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                final isUser = msg["role"] == "user";
-                return Align(
-                  alignment: isUser
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.all(12),
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isUser
-                          ? const Color(0xFF00D4FF)
-                          : const Color(0xFF16213E),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      msg["text"],
-                      style: TextStyle(
-                        color: isUser ? Colors.black : Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: const Color(0xFF16213E),
+          child: const Row(
+            children: [
+              Icon(Icons.chat, color: Color(0xFF00D4FF)),
+              SizedBox(width: 10),
+              Text("Chat",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
+              Spacer(),
+              Text("Ask anything — math, code, or general questions",
+                  style: TextStyle(color: Colors.grey, fontSize: 12)),
+            ],
           ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: CircularProgressIndicator(color: Color(0xFF00D4FF)),
-            ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: const Color(0xFF16213E),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: "Ask a math or code question...",
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: const Color(0xFF0F3460),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
+        ),
+        // Messages
+        Expanded(
+          child: _messages.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("🤖", style: TextStyle(fontSize: 60)),
+                      SizedBox(height: 16),
+                      Text("Ask me anything!",
+                          style: TextStyle(
+                              color: Colors.grey, fontSize: 18)),
+                      SizedBox(height: 8),
+                      Text(
+                          "Math • Code • General Knowledge • Web Search",
+                          style: TextStyle(
+                              color: Colors.grey, fontSize: 12)),
+                    ],
                   ),
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = _messages[index];
+                    final isUser = msg["role"] == "user";
+                    return Align(
+                      alignment: isUser
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.all(14),
+                        constraints: BoxConstraints(
+                          maxWidth:
+                              MediaQuery.of(context).size.width * 0.65,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isUser
+                              ? const Color(0xFF00D4FF)
+                              : const Color(0xFF16213E),
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(16),
+                            bottomLeft: Radius.circular(isUser ? 16 : 4),
+                            bottomRight: Radius.circular(isUser ? 4 : 16),
+                          ),
+                        ),
+                        child: Text(
+                          msg["text"],
+                          style: TextStyle(
+                            color:
+                                isUser ? Colors.black : Colors.white,
+                            fontSize: 14,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(width: 8),
-                FloatingActionButton(
-                  onPressed: _sendMessage,
-                  backgroundColor: const Color(0xFF00D4FF),
-                  child: const Icon(Icons.send, color: Colors.black),
-                ),
+        ),
+        // Loading
+        if (_isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF00D4FF))),
+                SizedBox(width: 10),
+                Text("ACRE is thinking...",
+                    style: TextStyle(color: Colors.grey)),
               ],
             ),
           ),
-        ],
-      ),
+        // Input
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: const Color(0xFF16213E),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Ask anything...",
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    filled: true,
+                    fillColor: const Color(0xFF0F3460),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(25),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 14),
+                  ),
+                  onSubmitted: (_) => _sendMessage(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FloatingActionButton(
+                onPressed: _isLoading ? null : _sendMessage,
+                backgroundColor: _isLoading
+                    ? Colors.grey
+                    : const Color(0xFF00D4FF),
+                child: Icon(
+                    _isLoading ? Icons.hourglass_empty : Icons.send,
+                    color: Colors.black),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -193,6 +364,80 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _channel?.sink.close();
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+}
+
+// ── HISTORY SCREEN ───────────────────────────────────────
+class HistoryScreen extends StatelessWidget {
+  const HistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.history, size: 60, color: Colors.grey),
+          SizedBox(height: 16),
+          Text("Chat History",
+              style: TextStyle(color: Colors.grey, fontSize: 18)),
+          SizedBox(height: 8),
+          Text("Coming soon...",
+              style: TextStyle(color: Colors.grey, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── SETTINGS SCREEN ──────────────────────────────────────
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Settings",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          _settingTile("🤖 Model", "qwen2.5-coder:1.5b"),
+          _settingTile("🌐 Backend", "localhost:8000"),
+          _settingTile("🧠 Memory", "Last 5 exchanges"),
+          _settingTile("🔍 Search", "DuckDuckGo (local)"),
+          _settingTile("📚 RAG", "Qdrant vector DB"),
+          _settingTile("🔬 Verification", "sympy + numpy"),
+        ],
+      ),
+    );
+  }
+
+  Widget _settingTile(String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF16213E),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: const TextStyle(color: Colors.white, fontSize: 14)),
+          Text(value,
+              style:
+                  const TextStyle(color: Color(0xFF00D4FF), fontSize: 14)),
+        ],
+      ),
+    );
   }
 }

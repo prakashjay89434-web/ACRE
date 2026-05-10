@@ -15,7 +15,10 @@ GENERAL_KEYWORDS = [
     "why did", "how did", "tell me", "explain", "describe",
     "history", "biography", "meaning", "definition",
     "kaun hai", "kya hai", "kaise", "kyun", "kab",
-    "mausam", "recipe", "khana", "movie", "news"
+    "mausam", "recipe", "khana", "movie", "news",
+    "who are", "what are", "which is", "which are",
+    "is modi", "is elon", "is trump", "about modi",
+    "about elon", "tell about", "batao", "bताओ"
 ]
 
 
