@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:http/http.dart' as http;
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'dart:convert';
 
 void main() {
@@ -48,7 +50,6 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: Row(
         children: [
-          // Sidebar
           Container(
             width: 220,
             color: const Color(0xFF0F3460),
@@ -80,8 +81,7 @@ class _MainScreenState extends State<MainScreen> {
                       Icon(Icons.circle, color: Colors.green, size: 10),
                       SizedBox(width: 8),
                       Text("Backend Connected",
-                          style:
-                              TextStyle(color: Colors.grey, fontSize: 11)),
+                          style: TextStyle(color: Colors.grey, fontSize: 11)),
                     ],
                   ),
                 ),
@@ -89,7 +89,6 @@ class _MainScreenState extends State<MainScreen> {
               ],
             ),
           ),
-          // Main content
           Expanded(child: _screens[_selectedIndex]),
         ],
       ),
@@ -115,15 +114,12 @@ class _MainScreenState extends State<MainScreen> {
         child: Row(
           children: [
             Icon(icon,
-                color:
-                    isSelected ? const Color(0xFF00D4FF) : Colors.grey,
+                color: isSelected ? const Color(0xFF00D4FF) : Colors.grey,
                 size: 20),
             const SizedBox(width: 12),
             Text(label,
                 style: TextStyle(
-                    color: isSelected
-                        ? const Color(0xFF00D4FF)
-                        : Colors.grey)),
+                    color: isSelected ? const Color(0xFF00D4FF) : Colors.grey)),
           ],
         ),
       ),
@@ -131,7 +127,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// ── CHAT SCREEN ──────────────────────────────────────────
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -145,6 +140,55 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Map<String, dynamic>> _messages = [];
   WebSocketChannel? _channel;
   bool _isLoading = false;
+
+  // Voice
+  final SpeechToText _speech = SpeechToText();
+  final FlutterTts _tts = FlutterTts();
+  bool _isListening = false;
+  bool _speechAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+    _initTts();
+  }
+
+  Future<void> _initSpeech() async {
+    _speechAvailable = await _speech.initialize();
+    setState(() {});
+  }
+
+  Future<void> _initTts() async {
+    await _tts.setLanguage("en-US");
+    await _tts.setSpeechRate(0.5);
+    await _tts.setVolume(1.0);
+  }
+
+  Future<void> _startListening() async {
+    if (!_speechAvailable) return;
+    await _speech.listen(
+      onResult: (result) {
+        setState(() {
+          _controller.text = result.recognizedWords;
+        });
+      },
+    );
+    setState(() => _isListening = true);
+  }
+
+  Future<void> _stopListening() async {
+    await _speech.stop();
+    setState(() => _isListening = false);
+  }
+
+  Future<void> _speak(String text) async {
+    final clean = text
+        .replaceAll(RegExp(r'[⚡📋💻✅🔍🧠]'), '')
+        .replaceAll('•', '')
+        .trim();
+    await _tts.speak(clean);
+  }
 
   void _sendMessage() {
     final query = _controller.text.trim();
@@ -184,6 +228,7 @@ class _ChatScreenState extends State<ChatScreen> {
               response += "\n✅ Verified: ${data['verification_score']}/100";
             }
             _isLoading = false;
+            _speak(response);
           }
           _updateLastBotMessage(response);
         });
@@ -218,7 +263,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Header
         Container(
           padding: const EdgeInsets.all(16),
           color: const Color(0xFF16213E),
@@ -237,7 +281,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
         ),
-        // Messages
         Expanded(
           child: _messages.isEmpty
               ? const Center(
@@ -247,13 +290,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       Text("🤖", style: TextStyle(fontSize: 60)),
                       SizedBox(height: 16),
                       Text("Ask me anything!",
-                          style: TextStyle(
-                              color: Colors.grey, fontSize: 18)),
+                          style:
+                              TextStyle(color: Colors.grey, fontSize: 18)),
                       SizedBox(height: 8),
                       Text(
-                          "Math • Code • General Knowledge • Web Search",
-                          style: TextStyle(
-                              color: Colors.grey, fontSize: 12)),
+                          "Math • Code • General Knowledge • Web Search • Voice",
+                          style:
+                              TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                 )
@@ -282,15 +325,16 @@ class _ChatScreenState extends State<ChatScreen> {
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(16),
                             topRight: const Radius.circular(16),
-                            bottomLeft: Radius.circular(isUser ? 16 : 4),
-                            bottomRight: Radius.circular(isUser ? 4 : 16),
+                            bottomLeft:
+                                Radius.circular(isUser ? 16 : 4),
+                            bottomRight:
+                                Radius.circular(isUser ? 4 : 16),
                           ),
                         ),
                         child: Text(
                           msg["text"],
                           style: TextStyle(
-                            color:
-                                isUser ? Colors.black : Colors.white,
+                            color: isUser ? Colors.black : Colors.white,
                             fontSize: 14,
                             height: 1.5,
                           ),
@@ -300,7 +344,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
                 ),
         ),
-        // Loading
         if (_isLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
@@ -311,26 +354,47 @@ class _ChatScreenState extends State<ChatScreen> {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF00D4FF))),
+                        strokeWidth: 2, color: Color(0xFF00D4FF))),
                 SizedBox(width: 10),
                 Text("ACRE is thinking...",
                     style: TextStyle(color: Colors.grey)),
               ],
             ),
           ),
-        // Input
         Container(
           padding: const EdgeInsets.all(12),
           color: const Color(0xFF16213E),
           child: Row(
             children: [
+              // Mic button
+              GestureDetector(
+                onTapDown: (_) => _startListening(),
+                onTapUp: (_) {
+                  _stopListening();
+                  if (_controller.text.isNotEmpty) _sendMessage();
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _isListening
+                        ? Colors.red
+                        : const Color(0xFF0F3460),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none,
+                    color: _isListening ? Colors.white : Colors.grey,
+                    size: 22,
+                  ),
+                ),
+              ),
               Expanded(
                 child: TextField(
                   controller: _controller,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: "Ask anything...",
+                    hintText: "Ask anything or hold mic to speak...",
                     hintStyle: const TextStyle(color: Colors.grey),
                     filled: true,
                     fillColor: const Color(0xFF0F3460),
@@ -347,9 +411,8 @@ class _ChatScreenState extends State<ChatScreen> {
               const SizedBox(width: 8),
               FloatingActionButton(
                 onPressed: _isLoading ? null : _sendMessage,
-                backgroundColor: _isLoading
-                    ? Colors.grey
-                    : const Color(0xFF00D4FF),
+                backgroundColor:
+                    _isLoading ? Colors.grey : const Color(0xFF00D4FF),
                 child: Icon(
                     _isLoading ? Icons.hourglass_empty : Icons.send,
                     color: Colors.black),
@@ -366,11 +429,11 @@ class _ChatScreenState extends State<ChatScreen> {
     _channel?.sink.close();
     _controller.dispose();
     _scrollController.dispose();
+    _tts.stop();
     super.dispose();
   }
 }
 
-// ── HISTORY SCREEN ───────────────────────────────────────
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -388,7 +451,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadHistory();
   }
 
- Future<void> _loadHistory() async {
+  Future<void> _loadHistory() async {
     try {
       final response = await http.get(
         Uri.parse('http://localhost:8000/api/history'),
@@ -522,7 +585,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 }
 
-// ── SETTINGS SCREEN ──────────────────────────────────────
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -545,6 +607,7 @@ class SettingsScreen extends StatelessWidget {
           _settingTile("🔍 Search", "DuckDuckGo (local)"),
           _settingTile("📚 RAG", "Qdrant vector DB"),
           _settingTile("🔬 Verification", "sympy + numpy"),
+          _settingTile("🎤 Voice", "Speech to Text + TTS"),
         ],
       ),
     );
