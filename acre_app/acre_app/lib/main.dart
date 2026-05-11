@@ -40,10 +40,11 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const ChatScreen(),
-    const HistoryScreen(),
-    const SettingsScreen(),
-  ];
+  const ChatScreen(),
+  const HistoryScreen(),
+  const SystemScreen(),
+  const SettingsScreen(),
+];
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +68,8 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(height: 30),
                 _sidebarItem(Icons.chat, "Chat", 0),
                 _sidebarItem(Icons.history, "History", 1),
-                _sidebarItem(Icons.settings, "Settings", 2),
+                _sidebarItem(Icons.monitor, "System", 2),
+                _sidebarItem(Icons.settings, "Settings", 3),
                 const Spacer(),
                 Container(
                   margin: const EdgeInsets.all(12),
@@ -631,6 +633,109 @@ class SettingsScreen extends StatelessWidget {
                   const TextStyle(color: Color(0xFF00D4FF), fontSize: 14)),
         ],
       ),
+    );
+  }
+}
+class SystemScreen extends StatefulWidget {
+  const SystemScreen({super.key});
+
+  @override
+  State<SystemScreen> createState() => _SystemScreenState();
+}
+
+class _SystemScreenState extends State<SystemScreen> {
+  Map<String, dynamic> _info = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInfo();
+  }
+
+  Future<void> _loadInfo() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:8000/api/system/info'),
+      );
+      setState(() {
+        _info = jsonDecode(response.body);
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Widget _statCard(String label, String value, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF16213E),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: const TextStyle(color: Colors.white, fontSize: 14)),
+          Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: const Color(0xFF16213E),
+          child: Row(
+            children: [
+              const Icon(Icons.monitor, color: Color(0xFF00D4FF)),
+              const SizedBox(width: 10),
+              const Text("System Monitor",
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.grey),
+                onPressed: () {
+                  setState(() => _loading = true);
+                  _loadInfo();
+                },
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF00D4FF)))
+              : Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("System Stats",
+                          style: TextStyle(color: Colors.grey, fontSize: 14)),
+                      const SizedBox(height: 12),
+                      _statCard("💻 CPU Usage", "${_info['cpu_percent']}%",
+                          _info['cpu_percent'] > 80 ? Colors.red : Colors.green),
+                      _statCard("🧠 RAM Usage", "${_info['ram_percent']}%",
+                          _info['ram_percent'] > 80 ? Colors.red : Colors.orange),
+                      _statCard("💾 RAM Used", "${_info['ram_used_gb']} / ${_info['ram_total_gb']} GB",
+                          const Color(0xFF00D4FF)),
+                      _statCard("📀 Disk Usage", "${_info['disk_percent']}%",
+                          _info['disk_percent'] > 80 ? Colors.red : Colors.green),
+                      _statCard("🖥️ Platform", "${_info['platform']}",
+                          const Color(0xFF00D4FF)),
+                    ],
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }

@@ -11,6 +11,7 @@ from rag.ingestion_pdf import ingest_pdf, ingest_arxiv
 import tempfile
 import os
 from utils.history import get_history, clear_history
+from utils.system_control import get_system_info, get_running_apps, open_application, take_screenshot
 
 router = APIRouter()
 
@@ -90,3 +91,24 @@ def get_chat_history():
 def delete_chat_history():
     clear_history()
     return {"message": "History cleared"}
+@router.get("/system/info")
+def system_info():
+    return get_system_info()
+
+
+@router.get("/system/apps")
+def running_apps():
+    return {"apps": get_running_apps()}
+
+
+@router.post("/system/open")
+def open_app(app_name: str):
+    # Always confirm before opening
+    result = open_application(app_name)
+    return result
+
+
+@router.get("/system/screenshot")
+def screenshot():
+    path = take_screenshot()
+    return {"path": path, "message": "Screenshot saved"}
