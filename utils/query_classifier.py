@@ -1,6 +1,3 @@
-import ollama
-
-
 TECHNICAL_KEYWORDS = [
     "calculate", "compute", "solve", "matrix", "eigenvalue",
     "determinant", "derivative", "integral", "gradient",
@@ -17,15 +14,27 @@ GENERAL_KEYWORDS = [
     "kaun hai", "kya hai", "kaise", "kyun", "kab",
     "mausam", "recipe", "khana", "movie", "news",
     "who are", "what are", "which is", "which are",
-    "is modi", "is elon", "is trump", "about modi",
-    "about elon", "tell about", "batao", "bताओ"
+    "tell about", "batao"
+]
+
+SYSTEM_KEYWORDS = [
+    "open", "launch", "start", "close", "shut down",
+    "restart", "kholo", "band karo", "open chrome",
+    "open notepad", "open calculator", "open vs code",
+    "take screenshot", "screenshot lo", "type",
+    "open terminal", "open cmd"
 ]
 
 
 def classify_query(query: str) -> str:
     query_lower = query.lower()
 
-    # Check general keywords first
+    # Check system commands first
+    for kw in SYSTEM_KEYWORDS:
+        if kw in query_lower:
+            return "system"
+
+    # Check general keywords
     for kw in GENERAL_KEYWORDS:
         if kw in query_lower:
             return "general"
@@ -35,30 +44,21 @@ def classify_query(query: str) -> str:
         if kw in query_lower:
             return "technical"
 
-    # If still uncertain use a simple heuristic
-    # Queries with numbers/symbols = technical
     import re
     if re.search(r'[\d\+\-\*\/\^\=\(\)\[\]]', query):
         return "technical"
 
-    # Default = general
     return "general"
 
 
 if __name__ == "__main__":
     tests = [
+        "open chrome",
         "Who is Elon Musk?",
-        "Calculate eigenvalues of a matrix",
-        "Kal ka mausam kaisa hoga?",
+        "Calculate eigenvalues",
+        "take screenshot",
+        "open vs code",
         "Solve x^2 - 5x + 6 = 0",
-        "Chicken biryani kaise banate hain?",
-        "Write a fibonacci function",
-        "Modi kaun hai?",
-        "What is machine learning?",
-        "2 + 2 = ?",
-        "Tell me about India",
     ]
-
     for t in tests:
-        result = classify_query(t)
-        print(f"{result:10} → {t}")
+        print(f"{classify_query(t):10} → {t}")

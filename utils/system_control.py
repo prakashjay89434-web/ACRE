@@ -1,12 +1,10 @@
 import psutil
 import subprocess
 import os
-import pyautogui
 import platform
 
 
 def get_system_info() -> dict:
-    """Get current system information."""
     return {
         "cpu_percent": psutil.cpu_percent(interval=1),
         "ram_percent": psutil.virtual_memory().percent,
@@ -18,7 +16,6 @@ def get_system_info() -> dict:
 
 
 def get_running_apps() -> list:
-    """Get list of running applications."""
     apps = []
     for proc in psutil.process_iter(['pid', 'name', 'status']):
         try:
@@ -29,65 +26,66 @@ def get_running_apps() -> list:
                 })
         except Exception:
             pass
-    return apps[:20]  # Return top 20
+    return apps[:20]
 
 
 def open_application(app_name: str) -> dict:
-    """Open an application. Requires user confirmation first."""
+    app_lower = app_name.lower().strip()
+
     app_map = {
         "chrome": "start chrome",
         "notepad": "start notepad",
         "calculator": "start calc",
         "explorer": "start explorer",
+        "file explorer": "start explorer",
         "vs code": "code .",
         "vscode": "code .",
         "terminal": "start cmd",
         "cmd": "start cmd",
+        "whatsapp": "start whatsapp:",
+        "spotify": "start spotify:",
+        "word": "start winword",
+        "excel": "start excel",
+        "paint": "start mspaint",
+        "settings": "start ms-settings:",
+        "task manager": "start taskmgr",
+        "youtube": "start https://youtube.com",
+        "google": "start https://google.com",
+        "gmail": "start https://gmail.com",
+        "github": "start https://github.com",
     }
-
-    app_lower = app_name.lower()
-    command = None
 
     for key, cmd in app_map.items():
         if key in app_lower:
-            command = cmd
-            break
-
-    if not command:
-        return {"success": False, "message": f"App '{app_name}' not found in list"}
+            try:
+                subprocess.Popen(cmd, shell=True)
+                return {"success": True, "message": f"Opening {key}..."}
+            except Exception as e:
+                return {"success": False, "message": str(e)}
 
     try:
-        subprocess.Popen(command, shell=True)
-        return {"success": True, "message": f"Opening {app_name}..."}
+        subprocess.Popen(f"start {app_lower}", shell=True)
+        return {"success": True, "message": f"Trying to open '{app_name}'..."}
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": f"Could not open '{app_name}': {str(e)}"}
 
 
 def take_screenshot() -> str:
-    """Take a screenshot and save it."""
     path = "data/screenshot.png"
     os.makedirs("data", exist_ok=True)
-    screenshot = pyautogui.screenshot()
-    screenshot.save(path)
-    return path
+    try:
+        import mss
+        with mss.mss() as sct:
+            sct.shot(output=path)
+        return path
+    except Exception:
+        return "Screenshot failed - mss not available"
 
 
 def type_text(text: str) -> dict:
-    """Type text using keyboard."""
     try:
+        import pyautogui
         pyautogui.typewrite(text, interval=0.05)
         return {"success": True, "message": f"Typed: {text}"}
     except Exception as e:
         return {"success": False, "message": str(e)}
-
-
-if __name__ == "__main__":
-    print("System Info:")
-    info = get_system_info()
-    for k, v in info.items():
-        print(f"  {k}: {v}")
-
-    print("\nRunning Apps (top 5):")
-    apps = get_running_apps()
-    for app in apps[:5]:
-        print(f"  {app['name']} (PID: {app['pid']})")
