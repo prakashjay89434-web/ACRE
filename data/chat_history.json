@@ -96,5 +96,19 @@
     "query": "open youtube and search for Bollywood music",
     "answer": "Searched 'open youtube and search for bollywood music' on YouTube",
     "type": ""
+  },
+  {
+    "id": 15,
+    "timestamp": "2026-05-16 00:03",
+    "query": "make a to do game project",
+    "answer": "Based on the provided information, here's a detailed answer to make a to-do game project:\n\n**To make a to-do game project, you'll need the following components:**\n\n1. **Game Design Document (GDD):** This document outlines the rules of the game, characters, levels, objectives, and scoring system.\n\n2. **Development Environment:** Set up your preferred development tools and environment. This could be a game engine like Unity or Unreal Engine, along with a coding language like C# for Unity or Python",
+    "type": ""
+  },
+  {
+    "id": 16,
+    "timestamp": "2026-05-16 23:46",
+    "query": "build a weather app with python",
+    "answer": "\u2705 Project Created: __wether_pp_with_pyt\n        \n\ud83d\udcc1 Location: data/projects/__wether_pp_with_pyt\n\n\ud83d\udccb Structure:\nPROJECT_NAME: WeatherApp\nFILES:\n- main.py: The entry point of the application.\n- weather_api_client.py: Handles communication with the weather API.\n- temperature_converter.py: Converts temperatures from Celsius to Fahrenheit or vice versa.\n- data_manager.py: Manages and stores weather data in a database or file.\n- api_key.txt: Contains the API key for accessing the weather service.\n- set",
+    "type": ""
   }
 ]

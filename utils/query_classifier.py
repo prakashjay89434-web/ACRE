@@ -18,18 +18,32 @@ GENERAL_KEYWORDS = [
 ]
 
 SYSTEM_KEYWORDS = [
-    "open", "launch", "start", "close", "shut down",
-    "restart", "kholo", "band karo", "open chrome",
+    "open", "launch", "start", "close",
+    "kholo", "band karo", "open chrome",
     "open notepad", "open calculator", "open vs code",
-    "take screenshot", "screenshot lo", "type",
-    "open terminal", "open cmd"
+    "take screenshot", "screenshot lo",
+    "open terminal", "open cmd", "open youtube",
+    "open whatsapp", "open google", "search on youtube",
+    "search on google", "send message", "send email"
+]
+
+PROJECT_KEYWORDS = [
+    "build", "create a project", "make a project",
+    "build a", "create a", "make a",
+    "develop", "scaffold", "generate project",
+    "new project", "setup project"
 ]
 
 
 def classify_query(query: str) -> str:
     query_lower = query.lower()
 
-    # Check system commands first
+    # Check project builder first
+    for kw in PROJECT_KEYWORDS:
+        if kw in query_lower:
+            return "project"
+
+    # Check system commands
     for kw in SYSTEM_KEYWORDS:
         if kw in query_lower:
             return "system"
@@ -53,12 +67,12 @@ def classify_query(query: str) -> str:
 
 if __name__ == "__main__":
     tests = [
-        "open chrome",
-        "Who is Elon Musk?",
-        "Calculate eigenvalues",
-        "take screenshot",
-        "open vs code",
-        "Solve x^2 - 5x + 6 = 0",
+        "build a todo app with flask",
+        "open youtube",
+        "who is elon musk",
+        "calculate eigenvalues",
+        "create a REST API",
+        "make a weather app",
     ]
     for t in tests:
         print(f"{classify_query(t):10} → {t}")

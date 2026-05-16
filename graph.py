@@ -5,6 +5,7 @@ from agents.coder_agent import CoderAgent
 from agents.critic_agent import CriticAgent
 from agents.general_agent import GeneralAgent
 from agents.system_agent import SystemAgent
+from agents.project_builder_agent import ProjectBuilderAgent
 from utils.query_classifier import classify_query
 
 
@@ -23,6 +24,7 @@ coder = CoderAgent()
 critic = CriticAgent()
 general = GeneralAgent()
 system = SystemAgent()
+project = ProjectBuilderAgent()
 
 
 def route_query(state: dict) -> str:
@@ -40,13 +42,15 @@ def build_graph():
     graph.add_node("critic", critic)
     graph.add_node("general", general)
     graph.add_node("system", system)
+    graph.add_node("project", project)
 
     graph.set_conditional_entry_point(
         route_query,
         {
             "technical": "planner",
             "general": "general",
-            "system": "system"
+            "system": "system",
+            "project": "project"
         }
     )
 
@@ -55,6 +59,7 @@ def build_graph():
     graph.add_edge("critic", END)
     graph.add_edge("general", END)
     graph.add_edge("system", END)
+    graph.add_edge("project", END)
 
     return graph.compile()
 
@@ -62,11 +67,11 @@ def build_graph():
 if __name__ == "__main__":
     app = build_graph()
 
-    print("=== Testing System Command ===")
+    print("=== Testing Project Builder ===")
     result = app.invoke({
-        "query": "take screenshot",
+        "query": "build a todo app with flask",
         "plan": {}, "current_step": 0,
         "code_result": {}, "verification": {},
         "error": "", "query_type": ""
     })
-    print(f"Result: {result['code_result']['stdout']}")
+    print(result['code_result']['stdout'])
